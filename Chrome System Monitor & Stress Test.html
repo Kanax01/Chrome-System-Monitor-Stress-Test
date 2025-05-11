@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrome System Monitor & Stress Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --accent-color: #4285f4;
+            --header-color: #444444;
+            --border-color: #e0e0e0;
+            --warning-color: #e74c3c;
+            --good-color: #2ecc71;
+            --chart-grid: #eeeeee;
+            --chart-text: #666666;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--header-color);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .info-value {
+            font-family: 'Consolas', monospace;
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+        
+        .warning {
+            color: var(--warning-color);
+            font-weight: bold;
+        }
+        
+        .good {
+            color: var(--good-color);
+        }
+        
+        .notice {
+            font-style: italic;
+            color: var(--text-color);
+            opacity: 0.7;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .theme-controls {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .test-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .test-btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            background-color: var(--accent-color);
+            color: white;
+            transition: all 0.2s;
+        }
+        
+        .test-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .test-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .test-btn.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .test-status {
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: var(--border-color);
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Chrome System Monitor & Stress Test</h1>
+    
+    <div class="container">
+        <div class="card">
+            <div class="card-header">System Information</div>
+            <div class="info-row">
+                <span class="info-label">Browser:</span>
+                <span class="info-value" id="browser-info">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">User Agent:</span>
+                <span class="info-value" id="user-agent">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Platform:</span>
+                <span class="info-value" id="platform-info">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">CPU Cores:</span>
+                <span class="info-value" id="cpu-cores">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Device Memory:</span>
+                <span class="info-value" id="device-memory">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">GPU Info:</span>
+                <span class="info-value" id="gpu-info">Loading...</span>
+            </div>
+            <div class="notice">
+                Note: Browser security restrictions limit access to detailed hardware information.
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">CPU Stress Test</div>
+            <div class="info-row">
+                <span class="info-label">CPU Load:</span>
+                <span class="info-value" id="cpu-load">0%</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="cpu-progress"></div>
+            </div>
+            <div class="test-controls">
+                <button class="test-btn" id="cpu-test-btn">Start CPU Stress Test</button>
+                <button class="test-btn warning" id="stop-cpu-btn">Stop Test</button>
+                <div class="test-status" id="cpu-status">Ready</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="cpuChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">Memory Stress Test</div>
+            <div class="info-row">
+                <span class="info-label">Memory Usage:</span>
+                <span class="info-value" id="mem-usage">Loading...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Allocated Memory:</span>
+                <span class="info-value" id="allocated-mem">0 MB</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="mem-progress"></div>
+            </div>
+            <div class="test-controls">
+                <button class="test-btn" id="mem-test-btn">Start Memory Stress Test</button>
+                <button class="test-btn warning" id="stop-mem-btn">Stop Test</button>
+                <div class="test-status" id="mem-status">Ready</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="memChart"></canvas>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">GPU Stress Test</div>
+            <div class="info-row">
+                <span class="info-label">GPU Load:</span>
+                <span class="info-value" id="gpu-load">0%</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="gpu-progress"></div>
+            </div>
+            <div class="test-controls">
+                <button class="test-btn" id="gpu-test-btn">Start GPU Stress Test</button>
+                <button class="test-btn warning" id="stop-gpu-btn">Stop Test</button>
+                <div class="test-status" id="gpu-status">Ready</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="gpuChart"></canvas>
+            </div>
+            <div class="notice">
+                GPU test uses WebGL to maximize graphical processing.
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">Heat Generator (Combined Test)</div>
+            <div class="info-row">
+                <span class="info-label">System Load:</span>
+                <span class="info-value" id="system-load">0%</span>
+            </div>
+            <div class="progress-container">
+                <div class="progress-bar" id="system-progress"></div>
+            </div>
+            <div class="test-controls">
+                <button class="test-btn warning" id="heat-test-btn">Start Heat Stress Test</button>
+                <button class="test-btn warning" id="stop-heat-btn">Stop All Tests</button>
+                <div class="test-status" id="heat-status">Ready</div>
+            </div>
+            <div class="chart-container">
+                <canvas id="heatChart"></canvas>
+            </div>
+            <div class="notice warning">
+                Warning: This will maximize CPU, GPU and memory usage. May cause system slowdown.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // System information gathering
+        document.getElementById('browser-info').textContent = navigator.userAgent;
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('platform-info').textContent = navigator.platform;
+        document.getElementById('cpu-cores').textContent = navigator.hardwareConcurrency || 'Unknown';
+        document.getElementById('device-memory').textContent = navigator.deviceMemory ? navigator.deviceMemory + ' GB' : 'Unknown';
+        
+        // Try to get GPU information
+        if (navigator.gpu) {
+            navigator.gpu.requestAdapter().then(adapter => {
+                document.getElementById('gpu-info').textContent = adapter.info ? adapter.info.description : 'WebGPU Available';
+            }).catch(() => {
+                document.getElementById('gpu-info').textContent = 'WebGPU Not Available';
+            });
+        } else {
+            document.getElementById('gpu-info').textContent = 'WebGPU Not Available';
+        }
+        
+        // Memory usage
+        if (performance.memory) {
+            const updateMemoryUsage = () => {
+                const mem = performance.memory;
+                const used = mem.usedJSHeapSize / (1024 * 1024);
+                const total = mem.totalJSHeapSize / (1024 * 1024);
+                document.getElementById('mem-usage').textContent = 
+                    `${used.toFixed(2)} MB / ${total.toFixed(2)} MB (${(used/total*100).toFixed(1)}%)`;
+                setTimeout(updateMemoryUsage, 1000);
+            };
+            updateMemoryUsage();
+        } else {
+            document.getElementById('mem-usage').textContent = 'Memory API not available';
+        }
+        
+        // Charts setup
+        const cpuCtx = document.getElementById('cpuChart').getContext('2d');
+        const cpuChart = new Chart(cpuCtx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'CPU Load %',
+                    data: Array(20).fill(0),
+                    borderColor: '#4285f4',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        const memCtx = document.getElementById('memChart').getContext('2d');
+        const memChart = new Chart(memCtx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'Memory Usage MB',
+                    data: Array(20).fill(0),
+                    borderColor: '#34a853',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+        
+        const gpuCtx = document.getElementById('gpuChart').getContext('2d');
+        const gpuChart = new Chart(gpuCtx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [{
+                    label: 'GPU Load %',
+                    data: Array(20).fill(0),
+                    borderColor: '#ea4335',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        const heatCtx = document.getElementById('heatChart').getContext('2d');
+        const heatChart = new Chart(heatCtx, {
+            type: 'line',
+            data: {
+                labels: Array(20).fill(''),
+                datasets: [
+                    {
+                        label: 'CPU Load',
+                        data: Array(20).fill(0),
+                        borderColor: '#4285f4',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'GPU Load',
+                        data: Array(20).fill(0),
+                        borderColor: '#ea4335',
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Memory Usage',
+                        data: Array(20).fill(0),
+                        borderColor: '#34a853',
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        // Stress test variables
+        let cpuTestRunning = false;
+        let memTestRunning = false;
+        let gpuTestRunning = false;
+        let allocatedMemory = [];
+        let animationFrameId = null;
+        let canvas = document.createElement('canvas');
+        let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        
+        // CPU Stress Test
+        document.getElementById('cpu-test-btn').addEventListener('click', () => {
+            cpuTestRunning = true;
+            document.getElementById('cpu-status').textContent = 'Running CPU stress test...';
+            document.getElementById('cpu-status').className = 'test-status good';
+            
+            function cpuIntensiveTask() {
+                if (!cpuTestRunning) return;
+                
+                let startTime = performance.now();
+                let sum = 0;
+                // Perform intensive calculations
+                for (let i = 0; i < 10000000; i++) {
+                    sum += Math.sqrt(i) * Math.sin(i) * Math.cos(i);
+                }
+                let endTime = performance.now();
+                let load = Math.min(100, (endTime - startTime) / 2); // Simulated load
+                
+                // Update UI
+                document.getElementById('cpu-load').textContent = load.toFixed(1) + '%';
+                document.getElementById('cpu-progress').style.width = load + '%';
+                
+                // Update chart
+                cpuChart.data.datasets[0].data.shift();
+                cpuChart.data.datasets[0].data.push(load);
+                cpuChart.update();
+                
+                // Continue the test
+                setTimeout(cpuIntensiveTask, 100);
+            }
+            
+            cpuIntensiveTask();
+        });
+        
+        // Memory Stress Test
+        document.getElementById('mem-test-btn').addEventListener('click', () => {
+            memTestRunning = true;
+            document.getElementById('mem-status').textContent = 'Running memory stress test...';
+            document.getElementById('mem-status').className = 'test-status good';
+            
+            function allocateMemory() {
+                if (!memTestRunning) return;
+                
+                // Allocate 100MB chunks
+                try {
+                    const chunk = new ArrayBuffer(100 * 1024 * 1024); // 100MB
+                    allocatedMemory.push(chunk);
+                    const totalMB = allocatedMemory.length * 100;
+                    document.getElementById('allocated-mem').textContent = totalMB + ' MB';
+                    
+                    // Update progress (cap at 80% of reported memory)
+                    const maxMem = navigator.deviceMemory ? navigator.deviceMemory * 1024 * 0.8 : 2000;
+                    const progress = Math.min(100, (totalMB / maxMem) * 100);
+                    document.getElementById('mem-progress').style.width = progress + '%';
+                    
+                    // Update chart
+                    memChart.data.datasets[0].data.shift();
+                    memChart.data.datasets[0].data.push(totalMB);
+                    memChart.update();
+                    
+                    // Continue allocating
+                    setTimeout(allocateMemory, 500);
+                } catch (e) {
+                    document.getElementById('mem-status').textContent = 'Memory allocation failed: ' + e.message;
+                    document.getElementById('mem-status').className = 'test-status warning';
+                    memTestRunning = false;
+                }
+            }
+            
+            allocateMemory();
+        });
+        
+        // GPU Stress Test
+        document.getElementById('gpu-test-btn').addEventListener('click', () => {
+            if (!gl) {
+                document.getElementById('gpu-status').textContent = 'WebGL not available';
+                document.getElementById('gpu-status').className = 'test-status warning';
+                return;
+            }
+            
+            gpuTestRunning = true;
+            document.getElementById('gpu-status').textContent = 'Running GPU stress test...';
+            document.getElementById('gpu-status').className = 'test-status good';
+            
+            let load = 0;
+            let lastTime = performance.now();
+            
+            function render() {
+                if (!gpuTestRunning) return;
+                
+                // Simple WebGL rendering that's computationally intensive
+                gl.clearColor(Math.random(), Math.random(), Math.random(), 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                // Draw many triangles
+                for (let i = 0; i < 100; i++) {
+                    gl.viewport(
+                        Math.random() * canvas.width, 
+                        Math.random() * canvas.height, 
+                        Math.random() * 100, 
+                        Math.random() * 100
+                    );
+                    gl.scissor(
+                        Math.random() * canvas.width, 
+                        Math.random() * canvas.height, 
+                        Math.random() * 100, 
+                        Math.random() * 100
+                    );
+                    gl.clear(gl.COLOR_BUFFER_BIT);
+                }
+                
+                // Calculate load (simulated)
+                const now = performance.now();
+                const delta = now - lastTime;
+                lastTime = now;
+                load = Math.min(100, 100 - (delta / 16) * 100); // Target 60fps
+                
+                // Update UI
+                document.getElementById('gpu-load').textContent = load.toFixed(1) + '%';
+                document.getElementById('gpu-progress').style.width = load + '%';
+                
+                // Update chart
+                gpuChart.data.datasets[0].data.shift();
+                gpuChart.data.datasets[0].data.push(load);
+                gpuChart.update();
+                
+                // Continue rendering
+                animationFrameId = requestAnimationFrame(render);
+            }
+            
+            // Set canvas size
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            render();
+        });
+        
+        // Heat Generator (Combined Test)
+        document.getElementById('heat-test-btn').addEventListener('click', () => {
+            // Start all tests
+            document.getElementById('cpu-test-btn').click();
+            document.getElementById('mem-test-btn').click();
+            document.getElementById('gpu-test-btn').click();
+            
+            document.getElementById('heat-status').textContent = 'Running combined stress test...';
+            document.getElementById('heat-status').className = 'test-status warning';
+            
+            // Update combined chart
+            function updateHeatChart() {
+                const cpuLoad = parseFloat(document.getElementById('cpu-load').textContent) || 0;
+                const gpuLoad = parseFloat(document.getElementById('gpu-load').textContent) || 0;
+                const memLoad = (parseFloat(document.getElementById('allocated-mem').textContent) / 10) || 0; // Scaled
+                
+                // Update system load (average)
+                const systemLoad = (cpuLoad + gpuLoad + memLoad) / 3;
+                document.getElementById('system-load').textContent = systemLoad.toFixed(1) + '%';
+                document.getElementById('system-progress').style.width = systemLoad + '%';
+                
+                // Update chart
+                heatChart.data.datasets[0].data.shift();
+                heatChart.data.datasets[0].data.push(cpuLoad);
+                heatChart.data.datasets[1].data.shift();
+                heatChart.data.datasets[1].data.push(gpuLoad);
+                heatChart.data.datasets[2].data.shift();
+                heatChart.data.datasets[2].data.push(memLoad);
+                heatChart.update();
+                
+                if (cpuTestRunning || memTestRunning || gpuTestRunning) {
+                    setTimeout(updateHeatChart, 1000);
+                }
+            }
+            
+            updateHeatChart();
+        });
+        
+        // Stop buttons
+        document.getElementById('stop-cpu-btn').addEventListener('click', () => {
+            cpuTestRunning = false;
+            document.getElementById('cpu-status').textContent = 'Test stopped';
+            document.getElementById('cpu-status').className = 'test-status';
+            document.getElementById('cpu-load').textContent = '0%';
+            document.getElementById('cpu-progress').style.width = '0%';
+        });
+        
+        document.getElementById('stop-mem-btn').addEventListener('click', () => {
+            memTestRunning = false;
+            allocatedMemory = [];
+            document.getElementById('mem-status').textContent = 'Test stopped - memory freed';
+            document.getElementById('mem-status').className = 'test-status';
+            document.getElementById('allocated-mem').textContent = '0 MB';
+            document.getElementById('mem-progress').style.width = '0%';
+        });
+        
+        document.getElementById('stop-gpu-btn').addEventListener('click', () => {
+            gpuTestRunning = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            document.getElementById('gpu-status').textContent = 'Test stopped';
+            document.getElementById('gpu-status').className = 'test-status';
+            document.getElementById('gpu-load').textContent = '0%';
+            document.getElementById('gpu-progress').style.width = '0%';
+        });
+        
+        document.getElementById('stop-heat-btn').addEventListener('click', () => {
+            document.getElementById('stop-cpu-btn').click();
+            document.getElementById('stop-mem-btn').click();
+            document.getElementById('stop-gpu-btn').click();
+            document.getElementById('heat-status').textContent = 'All tests stopped';
+            document.getElementById('heat-status').className = 'test-status';
+            document.getElementById('system-load').textContent = '0%';
+            document.getElementById('system-progress').style.width = '0%';
+        });
+        
+        // Theme controls from previous implementation would go here
+    </script>
+</body>
+</html>
